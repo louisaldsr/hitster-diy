@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère docs/cartes.json à partir de tous les CSV de data/.
+"""Génère docs/cartes.json à partir de data/cartes.csv.
 
 Le JSON ne contient que ce dont la page a besoin pour jouer :
 l'ID YouTube et le temps de départ. Aucun titre, pour ne rien
@@ -13,25 +13,24 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
+CSV = ROOT / "data" / "cartes.csv"
 OUT = ROOT / "docs" / "cartes.json"
 
 
 def main():
     cartes = {}
     manquants = []
-    for path in sorted(DATA.glob("*.csv")):
-        with path.open(newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                num = row["num"].strip()
-                if num in cartes:
-                    sys.exit(f"Numéro en double : {num} ({path.name})")
-                vid = (row.get("youtube_id") or "").strip()
-                if not vid:
-                    manquants.append(num)
-                    continue
-                debut = (row.get("debut_s") or "").strip()
-                cartes[num] = {"v": vid, "s": int(float(debut)) if debut else 0}
+    with CSV.open(newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            num = row["id"].strip()
+            if num in cartes:
+                sys.exit(f"ID en double : {num}")
+            vid = (row.get("youtube_id") or "").strip()
+            if not vid:
+                manquants.append(num)
+                continue
+            debut = (row.get("debut_s") or "").strip()
+            cartes[num] = {"v": vid, "s": int(float(debut)) if debut else 0}
 
     OUT.write_text(json.dumps(cartes, separators=(",", ":"), sort_keys=True), encoding="utf-8")
     print(f"{len(cartes)} cartes écrites dans {OUT.relative_to(ROOT)}")

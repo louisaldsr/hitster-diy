@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remplit la colonne youtube_id des CSV de data/ en cherchant sur YouTube.
+"""Remplit la colonne youtube_id de data/cartes.csv en cherchant sur YouTube.
 
 Pour chaque carte sans youtube_id, cherche le morceau, écarte les vidéos
 trop longues ou dont la lecture intégrée est interdite, et garde le premier
@@ -9,7 +9,7 @@ vidéo retenue pour vérifier rapidement les choix douteux.
 À lancer sur ton Mac (pas besoin de clé API) :
     pip3 install yt-dlp
     python3 scripts/find_youtube.py              # toutes les cartes sans ID
-    python3 scripts/find_youtube.py --only A047  # une ou plusieurs cartes
+    python3 scripts/find_youtube.py --only 0047  # une ou plusieurs cartes
     python3 scripts/find_youtube.py --check      # revérifie les IDs existants
 
 Pour corriger un mauvais choix : colle le bon ID dans le CSV, à la main.
@@ -55,7 +55,7 @@ def query_for(row):
     q = f'{morceau} {row["artiste"]}'
     if row["artiste"] == "Disney" or "(VF)" in row["morceau"]:
         q = f'{morceau} {row["oeuvre"]} version française'
-    elif row["type"] == "Jeu":
+    elif row["type"] == "Game":
         q = f'{row["oeuvre"]} {morceau} OST'
     elif row["morceau"].lower() in ("main title", "main theme", "main title theme"):
         q = f'{row["oeuvre"]} {morceau} {row["artiste"]}'
@@ -69,7 +69,7 @@ def search(ydl, query):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--only", nargs="*", help="numéros de cartes à traiter")
+    ap.add_argument("--only", nargs="*", help="IDs de cartes à traiter")
     ap.add_argument("--check", action="store_true", help="revérifier les IDs déjà remplis")
     args = ap.parse_args()
     only = set(args.only or [])
@@ -77,7 +77,7 @@ def main():
     ydl = YoutubeDL({"quiet": True, "extract_flat": True, "skip_download": True})
     report = []
 
-    for path in sorted(DATA.glob("serie_*.csv")):
+    for path in [DATA / "cartes.csv"]:
         with path.open(newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             fields = reader.fieldnames
@@ -85,7 +85,7 @@ def main():
 
         changed = False
         for row in rows:
-            num = row["num"]
+            num = row["id"]
             if only and num not in only:
                 continue
             vid = row["youtube_id"].strip()

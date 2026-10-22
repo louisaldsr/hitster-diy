@@ -115,7 +115,6 @@
 </head>
 <body>
   <main id="game" hidden>
-    <div class="num" id="num"></div>
     <button class="disc" id="disc" aria-label="Lecture" disabled>
       <span class="icon" id="icon"></span>
     </button>
@@ -175,7 +174,6 @@
       return;
     }
     $("game").hidden = false;
-    $("num").textContent = code;
     $("icon").innerHTML = ICON_PLAY;
 
     try {
@@ -232,7 +230,7 @@
           const msg = e.data === 101 || e.data === 150
             ? "Cette vidéo ne peut pas être lue ici. Change son ID dans le CSV."
             : "Vidéo introuvable ou supprimée. Change son ID dans le CSV.";
-          setStatus(msg + " (" + code + ")", true);
+          setStatus(msg + " (carte " + code + ")", true);
         },
       },
     });

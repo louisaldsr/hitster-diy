@@ -6,8 +6,8 @@ morceau). Le verso est inversé gauche/droite pour tomber pile en face
 avec une impression recto/verso « bord long ».
 
     pip3 install reportlab
-    python3 scripts/make_cards.py                 # toutes les séries
-    python3 scripts/make_cards.py --serie A       # une série
+    python3 scripts/make_cards.py                    # toutes les cartes
+    python3 scripts/make_cards.py --de 131 --a 260   # une plage d'IDs (nouvelles cartes)
     python3 scripts/make_cards.py --test          # une seule planche pour tester
     python3 scripts/make_cards.py --taille 55     # cartes de 5,5 cm (15 par page)
 """
@@ -26,7 +26,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
+CSV = ROOT / "data" / "cartes.csv"
 FONTS = ROOT / "fonts"
 BASE_URL = "https://louisaldsr.github.io/hitster-diy/?c="
 
@@ -39,15 +39,15 @@ GREY = (0.45, 0.45, 0.45)
 CROP = (0.6, 0.6, 0.6)
 
 
-def load(serie):
+def load(de, a):
     cards = []
-    for path in sorted(DATA.glob("serie_*.csv")):
-        with path.open(newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                if serie and row["prio"] != serie:
-                    continue
-                cards.append(row)
-    return cards
+    with CSV.open(newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            n = int(row["id"])
+            if (de and n < de) or (a and n > a):
+                continue
+            cards.append(row)
+    return sorted(cards, key=lambda r: int(r["id"]))
 
 
 def layout(size):
@@ -76,15 +76,12 @@ def crop_marks(c, cols, rows, x0, y0, size):
 
 
 def draw_front(c, card, x, y, size, base_url):
-    qr_size = size * 0.66
-    w = QrCodeWidget(base_url + card["num"], barLevel="M", barBorder=0)
+    qr_size = size * 0.70
+    w = QrCodeWidget(base_url + card["id"], barLevel="M", barBorder=0)
     bx0, by0, bx1, by1 = w.getBounds()
     d = Drawing(qr_size, qr_size, transform=[qr_size / (bx1 - bx0), 0, 0, qr_size / (by1 - by0), 0, 0])
     d.add(w)
-    renderPDF.draw(d, c, x + (size - qr_size) / 2, y + (size - qr_size) / 2 + size * 0.03)
-    c.setFillColorRGB(*GREY)
-    c.setFont("Sans", size * 0.075)
-    c.drawCentredString(x + size / 2, y + size * 0.065, card["num"])
+    renderPDF.draw(d, c, x + (size - qr_size) / 2, y + (size - qr_size) / 2)
 
 
 def fit_lines(text, font, max_size, min_size, width, max_lines):
@@ -139,17 +136,23 @@ def draw_back(c, card, x, y, size):
         c.drawCentredString(cx, by, ln)
         by += mfs * 1.2
 
+    # ID de la carte, discret, en bas à droite
+    c.setFillColorRGB(*CROP)
+    c.setFont("Sans", 4.5 * k)
+    c.drawRightString(x + size - size * 0.05, y + size * 0.045, card["id"])
+
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--serie", help="A, B ou C (par défaut : toutes)")
+    ap.add_argument("--de", type=int, help="premier ID à inclure")
+    ap.add_argument("--a", type=int, help="dernier ID à inclure")
     ap.add_argument("--taille", type=float, default=65, help="côté d'une carte en mm")
     ap.add_argument("--url", default=BASE_URL, help="début de l'URL encodée dans les QR")
     ap.add_argument("--test", action="store_true", help="seulement la première planche")
     ap.add_argument("--out", help="fichier de sortie")
     args = ap.parse_args()
 
-    cards = load(args.serie)
+    cards = load(args.de, args.a)
     if not cards:
         raise SystemExit("Aucune carte trouvée.")
     size = args.taille * mm
@@ -158,7 +161,7 @@ def main():
     if args.test:
         cards = cards[:per_page]
 
-    out = Path(args.out) if args.out else ROOT / f"cartes_{args.serie or 'toutes'}{'_test' if args.test else ''}.pdf"
+    out = Path(args.out) if args.out else ROOT / f"cartes_{cards[0]['id']}-{cards[-1]['id']}{'_test' if args.test else ''}.pdf"
     c = canvas.Canvas(str(out), pagesize=A4)
     c.setTitle("Hitster DIY")
 
